@@ -1,2 +1,2 @@
 # PENG!
-An interpreted programming language for writting fast code
+An interpreted programming language for writting code fast
