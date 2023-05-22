@@ -11,7 +11,7 @@ use location::path::FilePath;
 
 pub fn run(path: FilePath, text: String, arguments: &Arguments) -> Result<(), Error> {
     let tokens = lexer::lex(&path, text)?;
-    if arguments.get_flag("tokens") { println!("{}", join!(tokens, " ")) }
+    if arguments.get_flag("tokens") { println!("{}", tokens.iter().map(|x| join!(x, " ")).collect::<Vec<String>>().join("\n")) }
     todo!("run()")
 }
 

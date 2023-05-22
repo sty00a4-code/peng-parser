@@ -1,6 +1,8 @@
 use crate::{location::{position::*, path::FilePath}, error::Error};
 use super::token::Token;
 
+type LexerResult = Result<Vec<Vec<Located<Token>>>, Error>;
+
 pub struct Lexer {
     pub path: FilePath,
     text: Vec<String>,
@@ -57,6 +59,10 @@ impl Lexer {
                 '}' => {
                     self.advance();
                     Ok(Some(Located::new(Token::ObjOut, pos)))
+                }
+                '=' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::Equal, pos)))
                 }
                 '\'' => {
                     self.advance();
@@ -128,17 +134,22 @@ impl Lexer {
                     }
                     Ok(Some(Located::new(Token::from_id(id), pos)))
                 }
-                _ => todo!("lex token, char {c:?}")
+                c => Err(Error::new(format!("bad character {:?}", c), self.path.clone(), Some(pos)))
             }
             None => Ok(None)
         }
     }
-    pub fn lex(&mut self) -> Result<Vec<Located<Token>>, Error> {
-        let mut tokens = vec![];
-        while let Some(token) = self.next()? {
-            tokens.push(token);
+    pub fn lex(&mut self) -> LexerResult {
+        let mut lines = vec![];
+        while self.ln < self.text.len() {
+            let mut tokens = vec![];
+            while let Some(token) = self.next()? {
+                tokens.push(token);
+            }
+            lines.push(tokens);
+            self.ln += 1;
         }
-        Ok(tokens)
+        Ok(lines)
     }
 }
 
