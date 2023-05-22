@@ -8,7 +8,7 @@ impl Parsable for ID {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -18,7 +18,7 @@ impl Parsable for Parameter {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -28,7 +28,7 @@ impl Parsable for ObjectEntry {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -39,24 +39,68 @@ pub enum Path {
 }
 impl Parsable for Path {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
-        todo!()
+        let Located { item: token, pos } = parser.token_checked()?;
+        if let Token::ID(id) = token {
+            Ok(Located::new(Self::ID(ID(id)), pos))
+        } else {
+            Err(Error::new(format!("expected {}, got {}", Token::ID("".into()).name(), token.name()), parser.path.clone(), Some(pos)))
+        }
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
-        todo!()
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
+        let Located { item: token, pos } = parser.token()?;
+        if let Token::ID(id) = token {
+            Some(Located::new(Self::ID(ID(id)), pos))
+        } else {
+            None
+        }
     }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum Atom {
-    Path(Path), Int(i64), Float(f64), Bool(bool), Char(char), String(String),
+    Path(Located<Path>), Int(i64), Float(f64), Bool(bool), Char(char), String(String),
     Expression(Box<Located<Expression>>),
     Vector(Vec<Located<Expression>>), Object(Vec<ObjectEntry>)
 }
 impl Parsable for Atom {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
-        todo!()
+        let Located { item: token, pos: _ } = parser.token_ref_checked()?;
+        if let Token::ID(_) = token {
+            let path = Path::parse(parser)?;
+            let pos = path.pos.clone();
+            return Ok(Located::new(Self::Path(path), pos))
+        }
+        let Located { item: token, pos } = parser.token_checked()?;
+        match token {
+            Token::Int(v) => Ok(Located::new(Self::Int(v), pos)),
+            Token::Float(v) => Ok(Located::new(Self::Float(v), pos)),
+            Token::Bool(v) => Ok(Located::new(Self::Bool(v), pos)),
+            Token::Char(v) => Ok(Located::new(Self::Char(v), pos)),
+            Token::String(v) => Ok(Located::new(Self::String(v), pos)),
+            Token::ExprIn => todo!(),
+            Token::IndexIn => todo!(),
+            Token::ObjIn => todo!(),
+            token => Err(Error::new(format!("unexpected {}", token.name()), parser.path.clone(), Some(pos)))
+        }
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
-        todo!()
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
+        let Located { item: token, pos: _ } = parser.token_ref()?;
+        if let Token::ID(_) = token {
+            let path = Path::try_parse(parser)?;
+            let pos = path.pos.clone();
+            return Some(Located::new(Self::Path(path), pos))
+        }
+        let Located { item: token, pos } = parser.token()?;
+        match token {
+            Token::Int(v) => Some(Located::new(Self::Int(v), pos)),
+            Token::Float(v) => Some(Located::new(Self::Float(v), pos)),
+            Token::Bool(v) => Some(Located::new(Self::Bool(v), pos)),
+            Token::Char(v) => Some(Located::new(Self::Char(v), pos)),
+            Token::String(v) => Some(Located::new(Self::String(v), pos)),
+            Token::ExprIn => todo!(),
+            Token::IndexIn => todo!(),
+            Token::ObjIn => todo!(),
+            _ => None
+        }
     }
 }
 
@@ -83,10 +127,14 @@ pub enum Expression {
 }
 impl Parsable for Expression {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
-        todo!()
+        let atom = Atom::parse(parser)?;
+        let pos = atom.pos.clone();
+        Ok(Located::new(Self::Atom(atom), pos))
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
-        todo!()
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
+        let atom = Atom::try_parse(parser)?;
+        let pos = atom.pos.clone();
+        Some(Located::new(Self::Atom(atom), pos))
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -97,7 +145,7 @@ impl Parsable for TypeExpression {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -108,7 +156,7 @@ impl Parsable for KeyArgument {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -121,7 +169,7 @@ impl Parsable for Arguments {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -135,7 +183,7 @@ impl Parsable for Parameters {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
         todo!()
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         todo!()
     }
 }
@@ -159,7 +207,7 @@ impl Parsable for Statment {
                     Token::Equal => {
                         let expr = Expression::parse(parser)?;
                         pos.extend(&expr.pos);
-                        Ok(Located::new(Statment::Assign(path, expr), pos))
+                        Ok(Located::new(Self::Assign(path, expr), pos))
                     }
                     Token::ExprIn => {
                         let mut args = vec![];
@@ -170,7 +218,7 @@ impl Parsable for Statment {
                         let Located { item: _, pos: args_end_pos } = parser.token_expect(Token::ExprOut)?;
                         args_pos.extend(&args_end_pos);
                         let args = Located::new(Arguments { positional: args, kwargs: None }, args_pos);
-                        Ok(Located::new(Statment::Call(path, args), pos))
+                        Ok(Located::new(Self::Call(path, args), pos))
                     }
                     _ => panic!()
                 }
@@ -178,7 +226,7 @@ impl Parsable for Statment {
             token => Err(Error::new(format!("unexpected {}", token.name()), parser.path.clone(), Some(pos.clone())))
         }
     }
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
+    fn can_parse(parser: &mut Parser) -> Option<Located<Self>> {
         let Located { item: token, pos } = parser.token_ref()?;
         match token {
             Token::ID(_) => {
@@ -189,7 +237,7 @@ impl Parsable for Statment {
                     Token::Equal => {
                         let expr = Expression::try_parse(parser)?;
                         pos.extend(&expr.pos);
-                        Some(Located::new(Statment::Assign(path, expr), pos))
+                        Some(Located::new(Self::Assign(path, expr), pos))
                     }
                     Token::ExprIn => {
                         let mut args = vec![];
@@ -200,7 +248,7 @@ impl Parsable for Statment {
                         let Located { item: _, pos: args_end_pos } = parser.token_try_expect(Token::ExprOut)?;
                         args_pos.extend(&args_end_pos);
                         let args = Located::new(Arguments { positional: args, kwargs: None }, args_pos);
-                        Some(Located::new(Statment::Call(path, args), pos))
+                        Some(Located::new(Self::Call(path, args), pos))
                     }
                     _ => panic!()
                 }
@@ -212,6 +260,4 @@ impl Parsable for Statment {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block(Vec<Located<Statment>>);
 #[derive(Debug, Clone, PartialEq)]
-pub struct Chunk {
-    pub nodes: Vec<Located<Statment>>,
-}
+pub struct Chunk(pub Vec<Located<Statment>>);
