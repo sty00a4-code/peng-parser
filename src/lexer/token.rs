@@ -3,7 +3,7 @@ use std::fmt::Display;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     ID(String), Int(i64), Float(f64), Bool(bool), Char(char), String(String),
-    ExprIn, ExprOut
+    ExprIn, ExprOut, IndexIn, IndexOut, ObjIn, ObjOut,
 }
 impl Token {
     pub fn from_id(id: String) -> Self {
@@ -36,6 +36,10 @@ impl Display for Token {
             Self::String(v) => write!(f, "{v:?}"),
             Self::ExprIn => write!(f, "("),
             Self::ExprOut => write!(f, ")"),
+            Self::IndexIn => write!(f, "["),
+            Self::IndexOut => write!(f, "]"),
+            Self::ObjIn => write!(f, "{{"),
+            Self::ObjOut => write!(f, "}}"),
         }
     }
 }

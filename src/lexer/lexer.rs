@@ -3,15 +3,15 @@ use super::token::Token;
 
 pub struct Lexer {
     pub path: FilePath,
-    text: String,
+    text: Vec<String>,
     idx: usize, ln: usize, col: usize
 }
 impl Lexer {
     pub fn new(path: FilePath, text: String) -> Self {
-        Self { path, text, idx: 0, ln: 0, col: 0 }
+        Self { path, text: text.split("\n").map(|x| x.to_string()).collect(), idx: 0, ln: 0, col: 0 }
     }
     pub fn get(&self) -> Option<char> {
-        self.text.get(self.idx..self.idx+1)?.chars().next()
+        self.text.get(self.ln)?.get(self.idx..self.idx+1)?.chars().next()
     }
     pub fn pos(&self) -> Position {
         Position::new(self.ln..self.ln+1, self.col..self.col+1)
@@ -41,6 +41,22 @@ impl Lexer {
                 ')' => {
                     self.advance();
                     Ok(Some(Located::new(Token::ExprOut, pos)))
+                }
+                '[' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::IndexIn, pos)))
+                }
+                ']' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::IndexOut, pos)))
+                }
+                '{' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::ObjIn, pos)))
+                }
+                '}' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::ObjOut, pos)))
                 }
                 '\'' => {
                     self.advance();
