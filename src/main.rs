@@ -3,6 +3,7 @@ mod arguments;
 mod location;
 mod error;
 mod lexer;
+mod parser;
 
 use std::{env, fs, process::exit, io::{self, Write}};
 use arguments::Arguments;

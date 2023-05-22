@@ -4,7 +4,7 @@ use std::fmt::Display;
 pub enum Token {
     ID(String), Int(i64), Float(f64), Bool(bool), Char(char), String(String),
     ExprIn, ExprOut, IndexIn, IndexOut, ObjIn, ObjOut,
-    Equal
+    Equal, Seperate, Represent, Field,
 }
 impl Token {
     pub fn from_id(id: String) -> Self {
@@ -42,6 +42,9 @@ impl Display for Token {
             Self::ObjIn => write!(f, "{{"),
             Self::ObjOut => write!(f, "}}"),
             Self::Equal => write!(f, "="),
+            Self::Seperate => write!(f, ","),
+            Self::Represent => write!(f, ":"),
+            Self::Field => write!(f, "."),
         }
     }
 }

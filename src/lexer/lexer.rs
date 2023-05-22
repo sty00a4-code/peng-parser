@@ -64,6 +64,18 @@ impl Lexer {
                     self.advance();
                     Ok(Some(Located::new(Token::Equal, pos)))
                 }
+                ',' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::Seperate, pos)))
+                }
+                ':' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::Represent, pos)))
+                }
+                '.' => {
+                    self.advance();
+                    Ok(Some(Located::new(Token::Field, pos)))
+                }
                 '\'' => {
                     self.advance();
                     if let Some(c) = self.get() {
