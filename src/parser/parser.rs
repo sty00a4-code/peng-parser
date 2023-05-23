@@ -1,29 +1,32 @@
-use crate::{location::{path::FilePath, position::{Located, Position}}, lexer::token::Token, error::Error};
+use crate::{location::{path::FilePath, position::{Located, Position}}, lexer::{token::Token, lexer::Line}, error::Error};
 use super::ast::*;
 
 pub trait Parsable where Self: Sized {
-    fn parse(parser: &mut Parser) -> Result<Located<Self>, Error>;
+    fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error>;
 }
 
 #[derive(Clone)]
 pub struct Parser {
     pub path: FilePath,
-    tokens: Vec<Vec<Located<Token>>>,
+    lines: Vec<Line>,
     ln: usize
 }
 impl Parser {
-    pub fn new(path: FilePath, tokens: Vec<Vec<Located<Token>>>) -> Self {
-        Self { path, tokens, ln: 0 }
+    pub fn new(path: FilePath, lines: Vec<Line>) -> Self {
+        Self { path, lines, ln: 0 }
     }
 
     pub fn next_line(&mut self) {
-        if self.tokens.len() > 0 { self.tokens.remove(0); self.ln += 1 }
+        if self.lines.len() > 0 { self.lines.remove(0); self.ln += 1 }
+    }
+    pub fn indent(&self) -> usize {
+        self.lines.get(0).and_then(|line| Some(line.indent)).unwrap_or_default()
     }
     pub fn token(&mut self) -> Option<Located<Token>> {
-        if self.tokens.get(0)?.len() > 0 { Some(self.tokens.get_mut(0)?.remove(0)) } else { None }
+        if self.lines.get(0)?.tokens.len() > 0 { Some(self.lines.get_mut(0)?.tokens.remove(0)) } else { None }
     }
     pub fn token_ref(&self) -> Option<&Located<Token>> {
-        self.tokens.get(0)?.get(0)
+        self.lines.get(0)?.tokens.get(0)
     }
     pub fn token_checked(&mut self) -> Result<Located<Token>, Error> {
         let Some(token) = self.token() else {
@@ -69,10 +72,18 @@ impl Parser {
 
     pub fn parse(&mut self) -> Result<Chunk, Error> {
         let mut nodes = vec![];
+        if self.token_ref().is_none() {
+            while self.lines.len() > 0 {
+                self.next_line();
+            }
+        }
         while self.token_ref().is_some() {
-            nodes.push(Statment::parse(self)?);
+            if self.indent() != 0 {
+                return Err(Error::new(format!("unexpected indention, expected none"), self.path.clone(), Some(Position::new(self.ln..self.ln+1, 0..1))))
+            }
+            nodes.push(Statment::parse(self, self.indent())?);
             if self.token_ref().is_none() {
-                while self.tokens.len() > 0 {
+                while self.lines.len() > 0 {
                     self.next_line();
                 }
             }

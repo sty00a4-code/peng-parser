@@ -1,11 +1,10 @@
-use crate::{location::{path::FilePath, position::Located}, error::Error};
+use crate::{location::path::FilePath, error::Error};
 
 pub mod lexer;
 pub mod token;
 
-use lexer::Lexer;
-use token::Token;
+use lexer::*;
 
-pub fn lex(path: &FilePath, text: String) -> Result<Vec<Vec<Located<Token>>>, Error> {
+pub fn lex(path: &FilePath, text: String) -> Result<Vec<Line>, Error> {
     Lexer::new(path.clone(), text).lex()
 }

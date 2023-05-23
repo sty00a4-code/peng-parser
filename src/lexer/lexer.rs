@@ -1,7 +1,19 @@
-use crate::{location::{position::*, path::FilePath}, error::Error};
+use std::fmt::Display;
+
+use crate::{location::{position::*, path::FilePath}, error::Error, join};
 use super::token::Token;
 
-type LexerResult = Result<Vec<Vec<Located<Token>>>, Error>;
+#[derive(Debug, Clone, PartialEq)]
+pub struct Line {
+    pub tokens: Vec<Located<Token>>,
+    pub indent: usize
+}
+impl Display for Line {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", " ".repeat(self.indent), join!(self.tokens, " "))
+    }
+}
+type LexerResult = Result<Vec<Line>, Error>;
 
 pub struct Lexer {
     pub path: FilePath,
@@ -241,10 +253,16 @@ impl Lexer {
         let mut lines = vec![];
         while self.ln < self.text.len() {
             let mut tokens = vec![];
+            let mut indent = 0;
+            while let Some(c) = self.get() {
+                if !c.is_whitespace() { break; }
+                indent += 1;
+                self.advance();
+            }
             while let Some(token) = self.next()? {
                 tokens.push(token);
             }
-            lines.push(tokens);
+            lines.push(Line { tokens, indent });
             self.ln += 1;
         }
         Ok(lines)

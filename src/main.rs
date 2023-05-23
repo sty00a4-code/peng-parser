@@ -12,7 +12,7 @@ use location::path::FilePath;
 
 pub fn run(path: FilePath, text: String, arguments: &Arguments) -> Result<(), Error> {
     let tokens = lexer::lex(&path, text)?;
-    if arguments.get_flag("tokens") { println!("{}", tokens.iter().map(|x| join!(x, " ")).collect::<Vec<String>>().join("\n")) }
+    if arguments.get_flag("tokens") { println!("{}", join!(tokens, "\n")) }
     let ast = parser::parse(&path, tokens)?;
     if arguments.get_flag("ast") { println!("{ast:?}"); }
     todo!("run()")
