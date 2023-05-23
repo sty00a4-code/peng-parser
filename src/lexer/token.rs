@@ -5,12 +5,29 @@ pub enum Token {
     ID(String), Int(i64), Float(f64), Bool(bool), Char(char), String(String),
     ExprIn, ExprOut, IndexIn, IndexOut, ObjIn, ObjOut,
     Equal, Seperate, Represent, Field,
+
+    Add, Sub, Mul, Div, Mod, Pow,
+    AddEqual, SubEqual, DivEqual, MulEqual, ModEqual, PowEqual,
+    EQ, NE, LT, GT, LE, GE,
+    And, Or, Not,
+
+    If, Elif, Else, While, Repeat, For, In,
 }
 impl Token {
     pub fn from_id(id: String) -> Self {
         match id.as_str() {
             "true" => Self::Bool(true),
             "false" => Self::Bool(false),
+            "and" => Self::And,
+            "or" => Self::Or,
+            "not" => Self::Not,
+            "if" => Self::If,
+            "elif" => Self::Elif,
+            "else" => Self::Else,
+            "while" => Self::While,
+            "repeat" => Self::Repeat,
+            "for" => Self::For,
+            "in" => Self::In,
             _ => Self::ID(id)
         }
     }
@@ -45,6 +62,34 @@ impl Display for Token {
             Self::Seperate => write!(f, ","),
             Self::Represent => write!(f, ":"),
             Self::Field => write!(f, "."),
+            Self::Add => write!(f, "+"),
+            Self::Sub => write!(f, "-"),
+            Self::Mul => write!(f, "*"),
+            Self::Div => write!(f, "/"),
+            Self::Mod => write!(f, "%"),
+            Self::Pow => write!(f, "^"),
+            Self::AddEqual => write!(f, "+="),
+            Self::SubEqual => write!(f, "-="),
+            Self::MulEqual => write!(f, "*="),
+            Self::DivEqual => write!(f, "/="),
+            Self::ModEqual => write!(f, "%="),
+            Self::PowEqual => write!(f, "^="),
+            Self::EQ => write!(f, "=="),
+            Self::NE => write!(f, "!="),
+            Self::LT => write!(f, "<"),
+            Self::GT => write!(f, ">"),
+            Self::LE => write!(f, "<="),
+            Self::GE => write!(f, ">="),
+            Self::And => write!(f, "and"),
+            Self::Or => write!(f, "or"),
+            Self::Not => write!(f, "!"),
+            Self::If => write!(f, "if"),
+            Self::Elif => write!(f, "elif"),
+            Self::Else => write!(f, "else"),
+            Self::While => write!(f, "while"),
+            Self::Repeat => write!(f, "repeat"),
+            Self::For => write!(f, "For"),
+            Self::In => write!(f, "In"),
         }
     }
 }

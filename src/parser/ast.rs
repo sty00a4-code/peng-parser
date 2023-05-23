@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use crate::{location::position::Located, error::Error, lexer::token::Token};
 
 use super::parser::*;
@@ -95,8 +93,22 @@ static  BINARY_LAYERS: &[&[BinaryOperator]] = &[
     &[BinaryOperator::Pow],
 ];
 impl BinaryOperator {
-    pub fn token(token: Token) -> Option<Self> {
+    pub fn token(token: &Token) -> Option<Self> {
         match token {
+            Token::Add => Some(Self::Add),
+            Token::Sub => Some(Self::Sub),
+            Token::Mul => Some(Self::Mul),
+            Token::Div => Some(Self::Div),
+            Token::Mod => Some(Self::Mod),
+            Token::Pow => Some(Self::Pow),
+            Token::EQ => Some(Self::EQ),
+            Token::NE => Some(Self::NE),
+            Token::LT => Some(Self::LT),
+            Token::GT => Some(Self::GT),
+            Token::LE => Some(Self::LE),
+            Token::GE => Some(Self::GE),
+            Token::And => Some(Self::And),
+            Token::Or => Some(Self::Or),
             _ => None
         }
     }
@@ -113,8 +125,10 @@ static UNARY_LEFT_LAYERS: &[&[UnaryLeftOperator]] = &[
     &[UnaryLeftOperator::Neg],
 ];
 impl UnaryLeftOperator {
-    pub fn token(token: Token) -> Option<Self> {
+    pub fn token(token: &Token) -> Option<Self> {
         match token {
+            Token::Sub => Some(Self::Neg),
+            Token::Not => Some(Self::Not),
             _ => None
         }
     }
@@ -129,7 +143,7 @@ pub enum UnaryRightOperator {
 static UNARY_RIGHT_LAYERS: &[&[UnaryRightOperator]] = &[
 ];
 impl UnaryRightOperator {
-    pub fn token(token: Token) -> Option<Self> {
+    pub fn token(token: &Token) -> Option<Self> {
         match token {
             _ => None
         }
@@ -207,10 +221,28 @@ impl Parsable for Parameters {
         todo!()
     }
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AssignOperator {
+    Equal, Add, Sub, Mul, Div, Mod, Pow
+}
+impl AssignOperator {
+    pub fn token(token: &Token) -> Option<Self> {
+        match token {
+            Token::Equal => Some(Self::Equal),
+            Token::AddEqual => Some(Self::Add),
+            Token::SubEqual => Some(Self::Sub),
+            Token::MulEqual => Some(Self::Mul),
+            Token::DivEqual => Some(Self::Div),
+            Token::ModEqual => Some(Self::Mod),
+            Token::PowEqual => Some(Self::Pow),
+            _ => None
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statment {
     Variable(Located<Path>, Option<Located<TypeExpression>>, Located<Expression>),
-    Assign(Located<Path>, Located<Expression>),
+    Assign(Located<Path>, Located<AssignOperator>, Located<Expression>),
     Call(Located<Path>, Located<Arguments>),
     If(Vec<Located<Expression>>, Vec<Located<Block>>, Option<Located<Block>>),
     While(Located<Expression>, Located<Block>), Repeat(Located<Expression>, Located<Block>),
@@ -223,7 +255,7 @@ impl Parsable for Statment {
             Token::ID(_) => {
                 let mut pos = pos.clone();
                 let path = Path::parse(parser)?;
-                let Located { item: token, pos: mut args_pos } = parser.token_expects(&[Token::Equal, Token::Represent, Token::ExprIn])?;
+                let Located { item: token, pos: mut args_pos } = parser.token_expects(&[Token::Equal, Token::AddEqual, Token::SubEqual, Token::MulEqual, Token::DivEqual, Token::ModEqual, Token::PowEqual, Token::Represent, Token::ExprIn])?;
                 match token {
                     Token::Represent => {
                         if let Located { item: Path::ID(_), pos: _ } = &path {
@@ -242,10 +274,12 @@ impl Parsable for Statment {
                             return Err(Error::new(format!("expected {}", Token::ID("".into()).name()), parser.path.clone(), Some(pos)))
                         }
                     }
-                    Token::Equal => {
+                    Token::Equal | Token::AddEqual | Token::SubEqual | Token::MulEqual | Token::DivEqual | Token::ModEqual | Token::PowEqual => {
+                        let op = AssignOperator::token(&token).unwrap();
+                        let op = Located::new(op, pos.clone());
                         let expr = Expression::parse(parser)?;
                         pos.extend(&expr.pos);
-                        Ok(Located::new(Self::Assign(path, expr), pos))
+                        Ok(Located::new(Self::Assign(path, op, expr), pos))
                     }
                     Token::ExprIn => {
                         let mut args = vec![];

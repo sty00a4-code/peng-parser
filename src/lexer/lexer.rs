@@ -62,6 +62,11 @@ impl Lexer {
                 }
                 '=' => {
                     self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::Equal, pos)))
+                    }
                     Ok(Some(Located::new(Token::Equal, pos)))
                 }
                 ',' => {
@@ -75,6 +80,87 @@ impl Lexer {
                 '.' => {
                     self.advance();
                     Ok(Some(Located::new(Token::Field, pos)))
+                }
+                '+' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::AddEqual, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Add, pos)))
+                }
+                '-' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::SubEqual, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Sub, pos)))
+                }
+                '*' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::MulEqual, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Mul, pos)))
+                }
+                '/' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::DivEqual, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Div, pos)))
+                }
+                '%' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::ModEqual, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Mod, pos)))
+                }
+                '^' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::PowEqual, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Pow, pos)))
+                }
+                '!' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::NE, pos)))
+                    }
+                    Ok(Some(Located::new(Token::Not, pos)))
+                }
+                '<' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::EQ, pos)))
+                    }
+                    Ok(Some(Located::new(Token::LT, pos)))
+                }
+                '>' => {
+                    self.advance();
+                    if self.get() == Some('=') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::GE, pos)))
+                    }
+                    Ok(Some(Located::new(Token::GT, pos)))
                 }
                 '\'' => {
                     self.advance();
