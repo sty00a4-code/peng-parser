@@ -40,8 +40,8 @@ pub enum Path {
 }
 impl Parsable for Path {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error> {
-        let Located { item: id, mut pos } = ID::parse(parser)?;
-        let mut head = Located::new(Self::ID(id), pos);
+        let Located { item: id, pos } = ID::parse(parser)?;
+        let head = Located::new(Self::ID(id), pos);
         Ok(head)
     }
 }
