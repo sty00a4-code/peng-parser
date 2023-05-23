@@ -3,16 +3,6 @@ use super::ast::*;
 
 pub trait Parsable where Self: Sized {
     fn parse(parser: &mut Parser) -> Result<Located<Self>, Error>;
-    fn can_parse(parser: &mut Parser) -> Option<Located<Self>>;
-    fn try_parse(parser: &mut Parser) -> Option<Located<Self>> {
-        let _parser = parser.clone();
-        if let Some(thing) = Self::can_parse(parser) {
-            Some(thing)
-        } else {
-            *parser = _parser;
-            None
-        }
-    }
 }
 
 #[derive(Clone)]
