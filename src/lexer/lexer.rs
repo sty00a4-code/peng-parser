@@ -75,7 +75,7 @@ impl Lexer {
                     if self.get() == Some('=') {
                         pos.extend(&self.pos());
                         self.advance();
-                        return Ok(Some(Located::new(Token::Equal, pos)))
+                        return Ok(Some(Located::new(Token::EQ, pos)))
                     }
                     Ok(Some(Located::new(Token::Equal, pos)))
                 }

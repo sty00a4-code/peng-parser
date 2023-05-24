@@ -73,6 +73,7 @@ impl Parser {
         Some(loc_token)
     }
     pub fn expect_end(&mut self) -> Result<(), Error> {
+        dbg!(self.ln, self.token_ref());
         if let Some(Located { item: token, pos }) = self.token() {
             return Err(Error::new(format!("expected end of line, not {}", token.name()), self.path.clone(), Some(pos)))
         }
