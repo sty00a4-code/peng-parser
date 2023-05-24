@@ -1,4 +1,4 @@
-use crate::{location::position::Located, error::Error, lexer::token::Token};
+use crate::{location::position::{Located, Position}, error::Error, lexer::token::Token};
 
 use super::parser::*;
 
@@ -295,11 +295,71 @@ impl Parsable for Statment {
                     _ => panic!()
                 }
             }
+            Token::If => {
+                let Located { item: _, mut pos } = parser.token_checked()?;
+                let mut conds = vec![];
+                let mut cases = vec![];
+                loop {
+                    let cond = Expression::parse(parser, indent)?;
+                    conds.push(cond);
+                    let case = Block::parse(parser, indent)?;
+                    pos.extend(&case.pos);
+                    cases.push(case);
+                    if let Some(Located { item: Token::Elif, pos: _ }) = parser.token_ref() {
+                        parser.token_checked()?;
+                    } else {
+                        break;
+                    }
+                }
+                let mut else_case = None;
+                if let Some(Located { item: Token::Else, pos: _ }) = parser.token_ref() {
+                    parser.token_checked()?;
+                    else_case = Some(Block::parse(parser, indent)?);
+                }
+                Ok(Located::new(Statment::If(conds, cases, else_case), pos))
+            }
+            Token::While => {
+                let Located { item: _, mut pos } = parser.token_checked()?;
+                let cond = Expression::parse(parser, indent)?;
+                let body = Block::parse(parser, indent)?;
+                pos.extend(&body.pos);
+                Ok(Located::new(Statment::While(cond, body), pos))
+            }
+            Token::Repeat => {
+                let Located { item: _, mut pos } = parser.token_checked()?;
+                let count = Expression::parse(parser, indent)?;
+                let body = Block::parse(parser, indent)?;
+                pos.extend(&body.pos);
+                Ok(Located::new(Statment::While(count, body), pos))
+            }
             token => Err(Error::new(format!("unexpected {}", token.name()), parser.path.clone(), Some(pos.clone())))
         }
     }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block(Vec<Located<Statment>>);
+impl Parsable for Block {
+    fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        parser.expect_end()?;
+        if parser.indent() <= indent {
+            return Err(Error::new("expected indented code block", parser.path.clone(), Some(parser.pos())))
+        }
+        let block_indent = parser.indent();
+        let mut nodes = vec![];
+        let mut pos: Option<Position> = None;
+        while parser.indent() >= block_indent {
+            let stat = Statment::parse(parser, block_indent)?;
+            parser.expect_end()?;
+            pos = if let Some(mut pos) = pos {
+                pos.extend(&stat.pos);
+                Some(pos)
+            } else {
+                Some(stat.pos.clone())
+            };
+            nodes.push(stat);
+        }
+        Ok(Located::new(Self(nodes), pos.unwrap()))
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk(pub Vec<Located<Statment>>);

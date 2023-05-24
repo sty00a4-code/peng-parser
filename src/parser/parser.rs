@@ -16,6 +16,9 @@ impl Parser {
         Self { path, lines, ln: 0 }
     }
 
+    pub fn pos(&self) -> Position {
+        Position::new(self.ln..self.ln+1, 0..1)
+    }
     pub fn next_line(&mut self) {
         if self.lines.len() > 0 { self.lines.remove(0); self.ln += 1 }
     }
@@ -68,6 +71,13 @@ impl Parser {
             return None
         }
         Some(loc_token)
+    }
+    pub fn expect_end(&mut self) -> Result<(), Error> {
+        if let Some(Located { item: token, pos }) = self.token() {
+            return Err(Error::new(format!("expected end of line, not {}", token.name()), self.path.clone(), Some(pos)))
+        }
+        self.next_line();
+        Ok(())
     }
 
     pub fn parse(&mut self) -> Result<Chunk, Error> {

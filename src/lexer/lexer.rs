@@ -18,26 +18,24 @@ type LexerResult = Result<Vec<Line>, Error>;
 pub struct Lexer {
     pub path: FilePath,
     text: Vec<String>,
-    idx: usize, ln: usize, col: usize
+    ln: usize, col: usize
 }
 impl Lexer {
     pub fn new(path: FilePath, text: String) -> Self {
-        Self { path, text: text.split("\n").map(|x| x.to_string()).collect(), idx: 0, ln: 0, col: 0 }
+        Self { path, text: text.split("\n").map(|x| x.to_string()).collect(), ln: 0, col: 0 }
     }
     pub fn get(&self) -> Option<char> {
-        self.text.get(self.ln)?.get(self.idx..self.idx+1)?.chars().next()
+        self.text.get(self.ln)?.get(self.col..self.col+1)?.chars().next()
     }
     pub fn pos(&self) -> Position {
         Position::new(self.ln..self.ln+1, self.col..self.col+1)
     }
     pub fn advance(&mut self) {
-        if self.get() == Some('\n') {
-            self.ln += 1;
-            self.col = 0;
-        } else {
-            self.col += 1;
-        }
-        self.idx += 1;
+        self.col += 1;
+    }
+    pub fn advance_line(&mut self) {
+        self.ln += 1;
+        self.col = 0;
     }
 
     pub fn next(&mut self) -> Result<Option<Located<Token>>, Error> {
@@ -263,7 +261,7 @@ impl Lexer {
                 tokens.push(token);
             }
             lines.push(Line { tokens, indent });
-            self.ln += 1;
+            self.advance_line();
         }
         Ok(lines)
     }
