@@ -90,7 +90,7 @@ impl Display for Token {
             Self::GE => write!(f, ">="),
             Self::And => write!(f, "and"),
             Self::Or => write!(f, "or"),
-            Self::Not => write!(f, "!"),
+            Self::Not => write!(f, "not"),
             Self::If => write!(f, "if"),
             Self::Elif => write!(f, "elif"),
             Self::Else => write!(f, "else"),
