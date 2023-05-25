@@ -33,7 +33,12 @@ impl Parsable for Parameter {
 pub struct ObjectEntry(Located<ID>, Located<Expression>);
 impl Parsable for ObjectEntry {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
-        todo!()
+        let id = ID::parse(parser, indent)?;
+        let mut pos = id.pos.clone();
+        parser.token_expect(Token::Equal)?;
+        let expr = Expression::parse(parser, indent)?;
+        pos.extend(&expr.pos);
+        Ok(Located::new(Self(id, expr), pos))
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +57,7 @@ impl Parsable for Path {
 pub enum Atom {
     Path(Located<Path>), Int(i64), Float(f64), Bool(bool), Char(char), String(String),
     Expression(Box<Located<Expression>>),
-    Vector(Vec<Located<Expression>>), Object(Vec<ObjectEntry>)
+    Vector(Vec<Located<Expression>>), Object(Vec<Located<ObjectEntry>>)
 }
 impl Parsable for Atom {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
@@ -75,8 +80,40 @@ impl Parsable for Atom {
                 pos.extend(&end_pos);
                 Ok(Located::new(Self::Expression(Box::new(expr)), pos))
             }
-            Token::IndexIn => todo!(),
-            Token::ObjIn => todo!(),
+            Token::IndexIn => {
+                parser.skip_end();
+                let mut values = vec![];
+                loop {
+                    if let Located { item: Token::IndexOut, pos: _ } = parser.token_ref_checked()? {
+                        let Located { item: _, pos: end_pos } = parser.token_checked()?;
+                        pos.extend(&end_pos);
+                        break;
+                    }
+                    values.push(Expression::parse(parser, indent)?);
+                    if let Some(Located { item: Token::Seperate, pos: _ }) = parser.token_ref() {
+                        parser.token_expect(Token::Seperate)?;
+                    }
+                    parser.skip_end();
+                }
+                Ok(Located::new(Self::Vector(values), pos))
+            }
+            Token::ObjIn => {
+                parser.skip_end();
+                let mut values = vec![];
+                loop {
+                    if let Located { item: Token::ObjOut, pos: _ } = parser.token_ref_checked()? {
+                        let Located { item: _, pos: end_pos } = parser.token_checked()?;
+                        pos.extend(&end_pos);
+                        break;
+                    }
+                    values.push(ObjectEntry::parse(parser, indent)?);
+                    if let Some(Located { item: Token::Seperate, pos: _ }) = parser.token_ref() {
+                        parser.token_expect(Token::Seperate)?;
+                    }
+                    parser.skip_end();
+                }
+                Ok(Located::new(Self::Object(values), pos))
+            }
             token => Err(Error::new(format!("unexpected {}", token.name()), parser.path.clone(), Some(pos)))
         }
     }
@@ -161,6 +198,7 @@ pub enum Expression {
     Binary { op: BinaryOperator, left: Box<Located<Self>>, right: Box<Located<Self>> },
     UnaryLeft { op: UnaryLeftOperator, right: Box<Located<Self>> },
     UnaryRight { op: UnaryRightOperator, left: Box<Located<Self>> },
+    Call { func: Located<Path>, args: Located<Arguments> },
 }
 impl Expression {
     pub fn binary(parser: &mut Parser, indent: usize, layer: usize) -> Result<Located<Self>, Error> {
@@ -197,9 +235,7 @@ impl Expression {
     }
     pub fn unary_right(parser: &mut Parser, indent: usize, layer: usize) -> Result<Located<Self>, Error> {
         let Some(ops) = UnaryRightOperator::layer(layer) else {
-            let atom = Atom::parse(parser, indent)?;
-            let pos = atom.pos.clone();
-            return Ok(Located::new(Self::Atom(atom), pos))
+            return Self::call(parser, indent)
         };
         let mut left = Self::unary_left(parser, indent, layer + 1)?;
         if let Some(Located { item: token, pos: _ }) = parser.token_ref() {
@@ -213,6 +249,27 @@ impl Expression {
             }
         }
         Ok(left)
+    }
+    pub fn call(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        if let Some(Located { item: Token::ID(_), pos: _ }) = parser.token_ref() {
+            let func = Path::parse(parser, indent)?;
+            let mut pos = func.pos.clone();
+            if let Some(Located { item: Token::ExprIn, pos: _ }) = parser.token_ref() {
+                let args = Arguments::parse(parser, indent)?;
+                pos.extend(&args.pos);
+                Ok(Located::new(Self::Call { func, args }, pos))
+            } else {
+                Ok(Located::new(Self::Atom(Located::new(Atom::Path(func), pos.clone())), pos))
+            }
+        } else {
+            Self::atom(parser, indent)
+        }
+    }
+    pub fn atom(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        Atom::parse(parser, indent).map(|atom| {
+            let pos = atom.pos.clone();
+            Located::new(Self::Atom(atom), pos)
+        })
     }
 }
 impl Parsable for Expression {
@@ -251,15 +308,18 @@ impl Parsable for TypeExpression {
 pub struct Arguments(Vec<Located<Expression>>);
 impl Parsable for Arguments {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        let Located { item: _, mut pos } = parser.token_expect(Token::ExprIn)?;
         let mut args = vec![];
-        let expr = Expression::parse(parser, indent)?;
-        let mut pos = expr.pos.clone();
-        args.push(expr);
-        while let Some(Located { item: Token::Seperate, pos: _ }) = parser.token_ref() {
-            parser.token_checked()?;
-            let expr = Expression::parse(parser, indent)?;
-            pos.extend(&expr.pos);
-            args.push(expr);
+        while let Some(Located { item: token, pos: _ }) = parser.token_ref() {
+            if token == &Token::ExprOut {
+                break;
+            }
+            args.push(Expression::parse(parser, indent)?);
+            let Located { item: token, pos: end_pos } = parser.token_expects(&[Token::Seperate, Token::ExprOut])?;
+            if token == Token::ExprOut {
+                pos.extend(&end_pos);
+                break;
+            }
         }
         Ok(Located::new(Self(args), pos))
     }

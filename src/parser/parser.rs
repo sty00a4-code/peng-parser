@@ -79,6 +79,11 @@ impl Parser {
         self.next_line();
         Ok(())
     }
+    pub fn skip_end(&mut self) {
+        if self.token_ref().is_none() {
+            self.next_line();
+        }
+    }
 
     pub fn parse(&mut self) -> Result<Chunk, Error> {
         let mut nodes = vec![];
