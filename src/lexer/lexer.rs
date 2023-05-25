@@ -107,6 +107,11 @@ impl Lexer {
                         self.advance();
                         return Ok(Some(Located::new(Token::SubEqual, pos)))
                     }
+                    if self.get() == Some('>') {
+                        pos.extend(&self.pos());
+                        self.advance();
+                        return Ok(Some(Located::new(Token::Out, pos)))
+                    }
                     Ok(Some(Located::new(Token::Sub, pos)))
                 }
                 '*' => {

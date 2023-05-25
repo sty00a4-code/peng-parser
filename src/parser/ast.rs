@@ -298,6 +298,8 @@ pub enum Statment {
     If(Vec<Located<Expression>>, Vec<Located<Block>>, Option<Located<Block>>),
     While(Located<Expression>, Located<Block>), Repeat(Located<Expression>, Located<Block>),
     For(Located<Parameters>, Located<Expression>, Located<Block>),
+    Return(Located<Expression>), Break, Continue, Pass,
+    Function(Located<Path>, Option<Located<Parameters>>, Option<Located<TypeExpression>>, Located<Block>),
 }
 impl Parsable for Statment {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
@@ -321,7 +323,6 @@ impl Parsable for Statment {
                             let expr = Expression::parse(parser, indent)?;
                             pos.extend(&expr.pos);
                             parser.expect_end()?;
-                            parser.next_line();
                             Ok(Located::new(Self::Variable(path, Some(typ), expr), pos))
                         } else {
                             return Err(Error::new(format!("expected {}", Token::ID("".into()).name()), parser.path.clone(), Some(pos)))
@@ -333,7 +334,6 @@ impl Parsable for Statment {
                         let expr = Expression::parse(parser, indent)?;
                         pos.extend(&expr.pos);
                         parser.expect_end()?;
-                        parser.next_line();
                         Ok(Located::new(Self::Assign(path, op, expr), pos))
                     }
                     Token::ExprIn => {
@@ -346,7 +346,6 @@ impl Parsable for Statment {
                         args_pos.extend(&args_end_pos);
                         let args = Located::new(Arguments(args), args_pos);
                         parser.expect_end()?;
-                        parser.next_line();
                         Ok(Located::new(Self::Call(path, args), pos))
                     }
                     _ => panic!()
@@ -373,21 +372,59 @@ impl Parsable for Statment {
                     parser.token_checked()?;
                     else_case = Some(Block::parse(parser, indent)?);
                 }
-                Ok(Located::new(Statment::If(conds, cases, else_case), pos))
+                Ok(Located::new(Self::If(conds, cases, else_case), pos))
             }
             Token::While => {
                 let Located { item: _, mut pos } = parser.token_checked()?;
                 let cond = Expression::parse(parser, indent)?;
                 let body = Block::parse(parser, indent)?;
                 pos.extend(&body.pos);
-                Ok(Located::new(Statment::While(cond, body), pos))
+                Ok(Located::new(Self::While(cond, body), pos))
             }
             Token::Repeat => {
                 let Located { item: _, mut pos } = parser.token_checked()?;
                 let count = Expression::parse(parser, indent)?;
                 let body = Block::parse(parser, indent)?;
                 pos.extend(&body.pos);
-                Ok(Located::new(Statment::While(count, body), pos))
+                Ok(Located::new(Self::While(count, body), pos))
+            }
+            Token::Func => {
+                let Located { item: _, mut pos } = parser.token_checked()?;
+                let path = Path::parse(parser, indent)?;
+                let mut parameters = None;
+                let mut return_type = None;
+                if let Some(Located { item: Token::ExprIn, pos: _ }) = parser.token_ref() {
+                    parameters = Some(Parameters::parse(parser, indent)?);
+                }
+                if let Some(Located { item: Token::Out, pos: _ }) = parser.token_ref() {
+                    parser.token_checked()?;
+                    return_type = Some(TypeExpression::parse(parser, indent)?);
+                }
+                let body = Block::parse(parser, indent)?;
+                pos.extend(&body.pos);
+                Ok(Located::new(Self::Function(path, parameters, return_type, body), pos))
+            }
+            Token::Return => {
+                let Located { item: _, mut pos } = parser.token_checked()?;
+                let expr = Expression::parse(parser, indent)?;
+                pos.extend(&expr.pos);
+                parser.expect_end()?;
+                Ok(Located::new(Self::Return(expr), pos))
+            }
+            Token::Break => {
+                let Located { item: _, pos } = parser.token_checked()?;
+                parser.expect_end()?;
+                Ok(Located::new(Self::Break, pos))
+            }
+            Token::Continue => {
+                let Located { item: _, pos } = parser.token_checked()?;
+                parser.expect_end()?;
+                Ok(Located::new(Self::Continue, pos))
+            }
+            Token::Pass => {
+                let Located { item: _, pos } = parser.token_checked()?;
+                parser.expect_end()?;
+                Ok(Located::new(Self::Pass, pos))
             }
             token => Err(Error::new(format!("unexpected {}", token.name()), parser.path.clone(), Some(pos.clone())))
         }
@@ -406,6 +443,7 @@ impl Parsable for Block {
         let mut pos: Option<Position> = None;
         while parser.indent() >= block_indent {
             let stat = Statment::parse(parser, block_indent)?;
+            
             pos = if let Some(mut pos) = pos {
                 pos.extend(&stat.pos);
                 Some(pos)
