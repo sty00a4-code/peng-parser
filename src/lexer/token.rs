@@ -12,6 +12,7 @@ pub enum Token {
     And, Or, Not,
 
     If, Elif, Else, While, Repeat, For, In,
+    Func, Return, Break, Continue, Pass,
 }
 impl Token {
     pub fn from_id(id: String) -> Self {
@@ -28,6 +29,11 @@ impl Token {
             "repeat" => Self::Repeat,
             "for" => Self::For,
             "in" => Self::In,
+            "func" => Self::Func,
+            "return" => Self::Return,
+            "break" => Self::Break,
+            "continue" => Self::Continue,
+            "pass" => Self::Pass,
             _ => Self::ID(id)
         }
     }
@@ -88,8 +94,13 @@ impl Display for Token {
             Self::Else => write!(f, "else"),
             Self::While => write!(f, "while"),
             Self::Repeat => write!(f, "repeat"),
-            Self::For => write!(f, "For"),
-            Self::In => write!(f, "In"),
+            Self::For => write!(f, "for"),
+            Self::In => write!(f, "in"),
+            Self::Func => write!(f, "func"),
+            Self::Return => write!(f, "return"),
+            Self::Break => write!(f, "break"),
+            Self::Continue => write!(f, "continue"),
+            Self::Pass => write!(f, "pass"),
         }
     }
 }
