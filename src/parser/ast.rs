@@ -15,7 +15,10 @@ impl Parsable for ID {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct Parameter(Located<ID>, Located<TypeExpression>);
+pub enum Parameter {
+    Parameter(Located<ID>, Located<TypeExpression>),
+    Args(Located<ID>), Kwargs(Located<ID>)
+}
 impl Parsable for Parameter {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         let id = ID::parse(parser, indent)?;
@@ -23,7 +26,7 @@ impl Parsable for Parameter {
         parser.token_expect(Token::Represent)?;
         let typ = TypeExpression::parse(parser, indent)?;
         pos.extend(&typ.pos);
-        Ok(Located::new(Self(id, typ), pos))
+        Ok(Located::new(Self::Parameter(id, typ), pos))
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -269,7 +272,124 @@ pub struct Parameters {
 }
 impl Parsable for Parameters {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
-        todo!()
+        let Located { item: _, mut pos } = parser.token_expect(Token::ExprIn)?;
+        let mut positional = vec![];
+        let mut args = None;
+        let mut kwargs = None;
+        while let Some(Located { item: token, pos: _ }) = parser.token_ref() {
+            if token == &Token::ExprOut {
+                pos.extend(&parser.token_checked()?.pos);
+                break;
+            }
+            let param = Parameter::parse(parser, indent)?;
+            pos.extend(&param.pos);
+            match param.item {
+                Parameter::Parameter(id, typ) => {
+                    if args.is_some() || kwargs.is_some() {
+                        return Err(Error::new("positional argument after *args or **kwargs", parser.path.clone(), Some(pos)))
+                    }
+                    positional.push(Located::new(Parameter::Parameter(id, typ), param.pos.clone()))
+                }
+                Parameter::Args(id) => {
+                    if args.is_some() {
+                        return Err(Error::new("multiple *args", parser.path.clone(), Some(pos)))
+                    }
+                    args = Some(Located::new(Parameter::Args(id), param.pos.clone()))
+                }
+                Parameter::Kwargs(id) => {
+                    if kwargs.is_some() {
+                        return Err(Error::new("multiple **kwargs", parser.path.clone(), Some(pos)))
+                    }
+                    kwargs = Some(Located::new(Parameter::Kwargs(id), param.pos.clone()))
+                }
+            }
+            if let Some(Located { item: Token::Seperate, pos: _ }) = parser.token_ref() {
+                parser.token_checked()?;
+            }
+        }
+        Ok(Located::new(Self { positional, args, kwargs }, pos))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    Atom(Located<Atom>),
+    Tuple(Vec<Located<Pattern>>),
+    List(Vec<Located<Pattern>>),
+    Record(Vec<(Located<ID>, Located<Pattern>)>),
+    Wildcard,
+}
+impl Parsable for Pattern {
+    fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        let Located { item: token, mut pos } = parser.token_checked()?;
+        match token {
+            Token::ID(id) => if id.as_str() == "_" {
+                Ok(Located::new(Self::Wildcard, pos))
+            } else {
+                Ok(Located::new(Self::Atom(Located::new(Atom::Path(Located::new(Path::ID(ID(id)), pos.clone())), pos.clone())), pos))
+            }
+            Token::Int(int) => Ok(Located::new(Self::Atom(Located::new(Atom::Int(int), pos.clone())), pos)),
+            Token::Float(float) => Ok(Located::new(Self::Atom(Located::new(Atom::Float(float), pos.clone())), pos)),
+            Token::String(string) => Ok(Located::new(Self::Atom(Located::new(Atom::String(string), pos.clone())), pos)),
+            Token::Bool(boolean) => Ok(Located::new(Self::Atom(Located::new(Atom::Bool(boolean), pos.clone())), pos)),
+            Token::ExprIn => {
+                let mut patterns = vec![];
+                while let Some(Located { item: token, pos: _ }) = parser.token_ref() {
+                    if token == &Token::ExprOut {
+                        pos.extend(&parser.token_checked()?.pos);
+                        break;
+                    }
+                    patterns.push(Self::parse(parser, indent)?);
+                    let Located { item: token, pos: end_pos } = parser.token_expects(&[Token::Seperate, Token::ExprOut])?;
+                    if token == Token::ExprOut {
+                        pos.extend(&end_pos);
+                        break;
+                    }
+                }
+                Ok(Located::new(Self::Tuple(patterns), pos))
+            }
+            Token::IndexIn => {
+                let mut patterns = vec![];
+                while let Some(Located { item: token, pos: _ }) = parser.token_ref() {
+                    if token == &Token::IndexOut {
+                        pos.extend(&parser.token_checked()?.pos);
+                        break;
+                    }
+                    patterns.push(Self::parse(parser, indent)?);
+                    let Located { item: token, pos: end_pos } = parser.token_expects(&[Token::Seperate, Token::ExprOut])?;
+                    if token == Token::IndexOut {
+                        pos.extend(&end_pos);
+                        break;
+                    }
+                }
+                Ok(Located::new(Self::List(patterns), pos))
+            }
+            _ => Err(Error::new("invalid pattern", parser.path.clone(), Some(pos)))
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchCase {
+    pattern: Located<Pattern>,
+    guard: Option<Located<Expression>>,
+    body: Located<Block>,
+}
+impl Parsable for MatchCase {
+    fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        let pattern = Pattern::parse(parser, indent)?;
+        let mut pos = pattern.pos.clone();
+        pos.extend(&pattern.pos);
+        let guard = if let Some(Located { item: Token::If, pos: _ }) = parser.token_ref() {
+            parser.token_checked()?;
+            let expr = Expression::parse(parser, indent)?;
+            pos.extend(&expr.pos);
+            Some(expr)
+        } else {
+            None
+        };
+        let body = Block::parse(parser, indent)?;
+        pos.extend(&body.pos);
+        Ok(Located::new(Self { pattern, guard, body }, pos))
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -296,6 +416,7 @@ pub enum Statment {
     Assign(Located<Path>, Located<AssignOperator>, Located<Expression>),
     Call(Located<Path>, Located<Arguments>),
     If(Vec<Located<Expression>>, Vec<Located<Block>>, Option<Located<Block>>),
+    Match(Located<Expression>, Vec<Located<MatchCase>>),
     While(Located<Expression>, Located<Block>), Repeat(Located<Expression>, Located<Block>),
     For(Located<Parameters>, Located<Expression>, Located<Block>),
     Return(Located<Expression>), Break, Continue, Pass,
@@ -316,6 +437,7 @@ impl Parsable for Statment {
                                 parser.token_checked()?;
                                 let expr = Expression::parse(parser, indent)?;
                                 pos.extend(&expr.pos);
+                                parser.expect_end()?;
                                 return Ok(Located::new(Self::Variable(path, None, expr), pos))
                             }
                             let typ = TypeExpression::parse(parser, indent)?;
@@ -373,6 +495,28 @@ impl Parsable for Statment {
                     else_case = Some(Block::parse(parser, indent)?);
                 }
                 Ok(Located::new(Self::If(conds, cases, else_case), pos))
+            }
+            Token::Match => {
+                parser.token_checked()?;
+                let expr = Expression::parse(parser, indent)?;
+                parser.expect_end()?;
+                if parser.indent() <= indent {
+                    return Err(Error::new("expected indented code block", parser.path.clone(), Some(parser.pos())))
+                }
+                let mut cases = vec![];
+                let block_indent = parser.indent();
+                let mut pos: Option<Position> = None;
+                while parser.indent() >= block_indent {
+                    let match_case = MatchCase::parse(parser, block_indent)?;
+                    pos = if let Some(mut pos) = pos {
+                        pos.extend(&match_case.pos);
+                        Some(pos)
+                    } else {
+                        Some(match_case.pos.clone())
+                    };
+                    cases.push(match_case);
+                }
+                Ok(Located::new(Self::Match(expr, cases), pos.unwrap()))
             }
             Token::While => {
                 let Located { item: _, mut pos } = parser.token_checked()?;
@@ -443,7 +587,6 @@ impl Parsable for Block {
         let mut pos: Option<Position> = None;
         while parser.indent() >= block_indent {
             let stat = Statment::parse(parser, block_indent)?;
-            
             pos = if let Some(mut pos) = pos {
                 pos.extend(&stat.pos);
                 Some(pos)

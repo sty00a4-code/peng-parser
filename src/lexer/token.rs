@@ -11,7 +11,7 @@ pub enum Token {
     EQ, NE, LT, GT, LE, GE,
     And, Or, Not,
 
-    If, Elif, Else, While, Repeat, For, In,
+    If, Elif, Else, Match, While, Repeat, For, In,
     Func, Return, Break, Continue, Pass,
 }
 impl Token {
@@ -25,6 +25,7 @@ impl Token {
             "if" => Self::If,
             "elif" => Self::Elif,
             "else" => Self::Else,
+            "match" => Self::Match,
             "while" => Self::While,
             "repeat" => Self::Repeat,
             "for" => Self::For,
@@ -93,6 +94,7 @@ impl Display for Token {
             Self::If => write!(f, "if"),
             Self::Elif => write!(f, "elif"),
             Self::Else => write!(f, "else"),
+            Self::Match => write!(f, "match"),
             Self::While => write!(f, "while"),
             Self::Repeat => write!(f, "repeat"),
             Self::For => write!(f, "for"),
