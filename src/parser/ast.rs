@@ -391,18 +391,18 @@ impl Parsable for Statment {
             Token::Func => {
                 let Located { item: _, mut pos } = parser.token_checked()?;
                 let path = Path::parse(parser, indent)?;
-                let mut parameters = None;
-                let mut return_type = None;
+                let mut params = None;
                 if let Some(Located { item: Token::ExprIn, pos: _ }) = parser.token_ref() {
-                    parameters = Some(Parameters::parse(parser, indent)?);
+                    params = Some(Parameters::parse(parser, indent)?);
                 }
+                let mut typ = None;
                 if let Some(Located { item: Token::Out, pos: _ }) = parser.token_ref() {
                     parser.token_checked()?;
-                    return_type = Some(TypeExpression::parse(parser, indent)?);
+                    typ = Some(TypeExpression::parse(parser, indent)?);
                 }
                 let body = Block::parse(parser, indent)?;
                 pos.extend(&body.pos);
-                Ok(Located::new(Self::Function(path, parameters, return_type, body), pos))
+                Ok(Located::new(Self::Function(path, params, typ, body), pos))
             }
             Token::Return => {
                 let Located { item: _, mut pos } = parser.token_checked()?;
