@@ -49,7 +49,27 @@ pub enum Path {
 impl Parsable for Path {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         let Located { item: id, pos } = ID::parse(parser, indent)?;
-        let head = Located::new(Self::ID(id), pos);
+        let mut head = Located::new(Self::ID(id), pos);
+        while let Some(Located { item: token, pos: _ }) = parser.token_ref() {
+            match token {
+                Token::IndexIn => {
+                    parser.token_checked()?;
+                    let mut pos = head.pos.clone();
+                    let index = Expression::parse(parser, indent)?;
+                    let Located { item: _, pos: end_pos } = parser.token_expect(Token::IndexOut)?;
+                    pos.extend(&end_pos);
+                    head = Located::new(Self::Index(Box::new(head), Box::new(index)), pos)
+                }
+                Token::Field => {
+                    parser.token_checked()?;
+                    let mut pos = head.pos.clone();
+                    let field = ID::parse(parser, indent)?;
+                    pos.extend(&field.pos);
+                    head = Located::new(Self::Field(Box::new(head), field), pos)
+                }
+                _ => break
+            }
+        }
         Ok(head)
     }
 }
@@ -376,7 +396,6 @@ pub enum Pattern {
     Atom(Located<Atom>),
     Tuple(Vec<Located<Pattern>>),
     List(Vec<Located<Pattern>>),
-    Record(Vec<(Located<ID>, Located<Pattern>)>),
     Wildcard,
 }
 impl Parsable for Pattern {

@@ -236,11 +236,11 @@ impl Lexer {
                         }
                     }
                 }
-                c if c.is_alphabetic() => {
+                c if c.is_alphabetic() || c == '_' => {
                     let mut id = String::from(c);
                     self.advance();
                     while let Some(c) = self.get() {
-                        if !c.is_alphabetic() { break; }
+                        if !c.is_alphabetic() && c != '_' { break; }
                         id.push(c);
                         pos.extend(&self.pos());
                         self.advance();
