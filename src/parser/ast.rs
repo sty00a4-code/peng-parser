@@ -143,10 +143,11 @@ impl Parsable for Atom {
 pub enum BinaryOperator {
     Add, Sub, Mul, Div, Mod, Pow,
     EQ, NE, LT, GT, LE, GE,
-    And, Or
+    And, Or, In
 }
 static  BINARY_LAYERS: &[&[BinaryOperator]] = &[
     &[BinaryOperator::And, BinaryOperator::Or],
+    &[BinaryOperator::In],
     &[BinaryOperator::EQ, BinaryOperator::NE, BinaryOperator::LT, BinaryOperator::GT, BinaryOperator::LE, BinaryOperator::GE],
     &[BinaryOperator::Add, BinaryOperator::Sub],
     &[BinaryOperator::Mul, BinaryOperator::Div, BinaryOperator::Mod],
@@ -169,6 +170,7 @@ impl BinaryOperator {
             Token::GE => Some(Self::GE),
             Token::And => Some(Self::And),
             Token::Or => Some(Self::Or),
+            Token::In => Some(Self::In),
             _ => None
         }
     }
@@ -497,7 +499,7 @@ pub enum Statment {
     If(Vec<Located<Expression>>, Vec<Located<Block>>, Option<Located<Block>>),
     Match(Located<Expression>, Vec<Located<MatchCase>>),
     While(Located<Expression>, Located<Block>), Repeat(Located<Expression>, Located<Block>),
-    For(Located<Parameters>, Located<Expression>, Located<Block>),
+    For(Located<Parameter>, Located<Expression>, Located<Block>),
     Return(Located<Expression>), Break, Continue, Pass,
     Function(Located<Path>, Option<Located<Parameters>>, Option<Located<TypeExpression>>, Located<Block>),
 }
@@ -648,6 +650,15 @@ impl Parsable for Statment {
                 let Located { item: _, pos } = parser.token_checked()?;
                 parser.expect_end()?;
                 Ok(Located::new(Self::Pass, pos))
+            }
+            Token::For => {
+                let Located { item: _, mut pos } = parser.token_checked()?;
+                let parameter = Parameter::parse(parser, indent)?;
+                parser.token_expect(Token::In)?;
+                let expr = Expression::parse(parser, indent)?;
+                let body = Block::parse(parser, indent)?;
+                pos.extend(&body.pos);
+                Ok(Located::new(Self::For(parameter, expr, body), pos))
             }
             token => Err(Error::new(format!("unexpected {}", token.name()), parser.path.clone(), Some(pos.clone())))
         }
