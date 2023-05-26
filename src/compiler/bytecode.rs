@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, collections::{HashMap, HashSet}};
 
 pub type CodeAddr = usize;
 pub type Addr = usize;
@@ -120,10 +120,22 @@ impl ByteCode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Code {
     pub code: Vec<ByteCode>,
+    pub floats: Vec<f64>,
+    pub strings: Vec<String>,
+    pub functions: HashMap<VarAddr, CodeAddr>,
+    pub used_addrs: HashSet<VarAddr>,
+    pub memory_max: usize,
 }
 impl Code {
     pub fn new() -> Self {
-        Self { code: Vec::new() }
+        Self {
+            code: vec![],
+            floats: vec![],
+            strings: vec![],
+            functions: HashMap::new(),
+            used_addrs: HashSet::new(),
+            memory_max: 0,
+        }
     }
     pub fn push(&mut self, code: ByteCode) {
         self.code.push(code);
@@ -133,6 +145,32 @@ impl Code {
     }
     pub fn insert(&mut self, index: usize, code: ByteCode) {
         self.code.insert(index, code);
+    }
+
+    pub fn new_addr(&mut self) -> VarAddr {
+        let mut addr = 0;
+        while self.used_addrs.contains(&addr) {
+            addr += 1;
+        }
+        self.used_addrs.insert(addr);
+        addr
+    }
+    pub fn new_float(&mut self, float: f64) -> CodeAddr {
+        let mut addr = 0;
+        while self.floats[addr] != float {
+            addr += 1;
+        }
+        addr
+    }
+    pub fn new_string(&mut self, string: String) -> CodeAddr {
+        let mut addr = 0;
+        while self.strings[addr] != string {
+            addr += 1;
+        }
+        addr
+    }
+    pub fn set_function(&mut self, addr: VarAddr, code: CodeAddr) -> Option<CodeAddr> {
+        self.functions.insert(addr, code)
     }
 }
 impl Display for Code {

@@ -71,29 +71,16 @@ impl Compiler {
     }
 
     pub fn new_addr(&mut self) -> VarAddr {
-        let mut addr = 0;
-        while self.used_addrs.contains(&addr) {
-            addr += 1;
-        }
-        self.used_addrs.insert(addr);
-        addr
+        self.code.new_addr()
     }
     pub fn new_float(&mut self, float: f64) -> CodeAddr {
-        let mut addr = 0;
-        while self.floats[addr] != float {
-            addr += 1;
-        }
-        addr
+        self.code.new_float(float)
     }
     pub fn new_string(&mut self, string: String) -> CodeAddr {
-        let mut addr = 0;
-        while self.strings[addr] != string {
-            addr += 1;
-        }
-        addr
+        self.code.new_string(string)
     }
     pub fn set_function(&mut self, addr: VarAddr, code: CodeAddr) -> Option<CodeAddr> {
-        self.functions.insert(addr, code)
+        self.code.set_function(addr, code)
     }
     pub fn create_variable(&mut self, name: ID) -> VarAddr {
         let addr = self.new_addr();
@@ -110,6 +97,17 @@ impl Compiler {
             }
         }
         None
+    }
+    pub fn push_scope(&mut self) -> Option<()> {
+        self.frames.last_mut()?.push_scope();
+        Some(())
+    }
+    pub fn pop_scope(&mut self) -> Option<()> {
+        let scope = self.frames.last_mut()?.pop_scope()?;
+        for (_, addr) in scope.variables {
+            self.used_addrs.remove(&addr);
+        }
+        Some(())
     }
 
     pub fn compile(&mut self, ast: Chunk) -> Result<Code, Error> {
@@ -151,7 +149,23 @@ impl Compiler {
                 self.compile_expression(expression)?;
                 self.code.push(ByteCode::Store(addr));
             }
-            Statment::Assign(id, op, expression) => todo!("assignment compiling"),
+            Statment::Assign(path, Located { item: op, pos: op_pos }, expression) => {
+                let addr = self.get_path(path.clone(), true)?;
+                self.compile_expression(expression)?;
+                if op != AssignOperator::Equal {
+                    self.compile_path(path)?;
+                    self.code.push(match op {
+                        AssignOperator::Equal => panic!(),
+                        AssignOperator::Add => ByteCode::Add,
+                        AssignOperator::Sub => ByteCode::Sub,
+                        AssignOperator::Mul => ByteCode::Mul,
+                        AssignOperator::Div => ByteCode::Div,
+                        AssignOperator::Mod => ByteCode::Mod,
+                        AssignOperator::Pow => ByteCode::Pow,
+                    });
+                }
+                self.code.push(ByteCode::Store(addr))
+            }
             Statment::If(conditions, cases, else_case) => {
                 let mut indexes = vec![];
                 for (condition, body) in conditions.into_iter().zip(cases.into_iter()) {
@@ -163,11 +177,11 @@ impl Compiler {
                     self.code.push(ByteCode::None);
                     self.code.overwrite(condition_index, ByteCode::JumpIfNot(self.code.code.len()));
                 }
-                for index in indexes {
-                    self.code.overwrite(index, ByteCode::Jump(self.code.code.len()));
-                }
                 if let Some(body) = else_case {
                     self.compile_block(body)?;
+                }
+                for index in indexes {
+                    self.code.overwrite(index, ByteCode::Jump(self.code.code.len()));
                 }
             }
             // untested
@@ -257,8 +271,8 @@ impl Compiler {
             }
             // untested
             Expression::Binary { op, left, right } => {
-                self.compile_expression(*right)?;
                 self.compile_expression(*left)?;
+                self.compile_expression(*right)?;
                 match op {
                     BinaryOperator::Add => self.code.push(ByteCode::Add),
                     BinaryOperator::Sub => self.code.push(ByteCode::Sub),
@@ -345,19 +359,40 @@ impl Compiler {
         Ok(())
     }
     pub fn compile_path(&mut self, path: Located<Path>) -> Result<(), Error> {
-        // dynamic paths for objects
-        todo!("path compiling")
+        let Located { item: path, pos } = path;
+        match path {
+            Path::ID(id) => {
+                let Some(addr) = self.get_variable(&id) else {
+                    return Err(Error::new(format!("variable '{id}' not found"), self.path.clone(), Some(pos)))
+                };
+                self.code.push(ByteCode::Load(addr));
+            }
+            _ => todo!("path compiling")
+        }
+        Ok(())
     }
-    pub fn get_path(&mut self, path: Located<Path>, create: bool) -> Result<usize, Error> {
-        // static path for classes
-        todo!("path getting")
+    pub fn get_path(&mut self, path: Located<Path>, create: bool) -> Result<VarAddr, Error> {
+        let Located { item: path, pos } = path;
+        match path {
+            Path::ID(id) => {
+                let Some(addr) = self.get_variable(&id) else {
+                    if create {
+                        return Ok(self.create_variable(id))
+                    } else {
+                        return Err(Error::new(format!("variable '{id}' not found"), self.path.clone(), Some(pos)))
+                    }
+                };
+                Ok(addr)
+            }
+            _ => todo!("path compiling")
+        }
     }
+    /// assumes a new object is on the stack
     pub fn compile_object_entry(&mut self, path: Located<ObjectEntry>) -> Result<(), Error> {
-        // assumes a new object is on the stack
         todo!("object entry compiling")
     }
+    /// assumes the call arguments are on the stack
     pub fn compile_args(&mut self, path: Located<Arguments>) -> Result<(), Error> {
-        // assumes a new object is on the stack
         todo!("args compiling")
     }
     pub fn compile_pattern(&mut self, path: Located<Pattern>) -> Result<(), Error> {

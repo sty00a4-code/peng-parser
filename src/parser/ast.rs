@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{location::position::{Located, Position}, error::Error, lexer::token::Token};
 
 use super::parser::*;
@@ -12,6 +14,11 @@ impl Parsable for ID {
         } else {
             Err(Error::new(format!("expected {}, got {}", Token::ID("".into()).name(), token.name()), parser.path.clone(), Some(pos)))
         }
+    }
+}
+impl Display for ID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 #[derive(Debug, Clone, PartialEq)]
