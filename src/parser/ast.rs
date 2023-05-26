@@ -2,7 +2,7 @@ use crate::{location::position::{Located, Position}, error::Error, lexer::token:
 
 use super::parser::*;
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ID(String);
 impl Parsable for ID {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
@@ -327,7 +327,7 @@ impl Parsable for TypeExpression {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Arguments(Vec<Located<Expression>>);
+pub struct Arguments(pub Vec<Located<Expression>>);
 impl Parsable for Arguments {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         let Located { item: _, mut pos } = parser.token_expect(Token::ExprIn)?;
@@ -451,9 +451,9 @@ impl Parsable for Pattern {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchCase {
-    pattern: Located<Pattern>,
-    guard: Option<Located<Expression>>,
-    body: Located<Block>,
+    pub pattern: Located<Pattern>,
+    pub guard: Option<Located<Expression>>,
+    pub body: Located<Block>,
 }
 impl Parsable for MatchCase {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
@@ -493,7 +493,7 @@ impl AssignOperator {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statment {
-    Variable(Located<Path>, Option<Located<TypeExpression>>, Located<Expression>),
+    Variable(Located<ID>, Option<Located<TypeExpression>>, Located<Expression>),
     Assign(Located<Path>, Located<AssignOperator>, Located<Expression>),
     Call(Located<Path>, Located<Arguments>),
     If(Vec<Located<Expression>>, Vec<Located<Block>>, Option<Located<Block>>),
@@ -513,20 +513,21 @@ impl Parsable for Statment {
                 let Located { item: token, pos: mut args_pos } = parser.token_expects(&[Token::Equal, Token::AddEqual, Token::SubEqual, Token::MulEqual, Token::DivEqual, Token::ModEqual, Token::PowEqual, Token::Represent, Token::ExprIn])?;
                 match token {
                     Token::Represent => {
-                        if let Located { item: Path::ID(_), pos: _ } = &path {
+                        if let Located { item: Path::ID(id), pos: id_pos } = path {
+                            let id = Located::new(id, id_pos);
                             if let Some(Located { item: Token::Equal, pos: _ }) = parser.token_ref() {
                                 parser.token_checked()?;
                                 let expr = Expression::parse(parser, indent)?;
                                 pos.extend(&expr.pos);
                                 parser.expect_end()?;
-                                return Ok(Located::new(Self::Variable(path, None, expr), pos))
+                                return Ok(Located::new(Self::Variable(id, None, expr), pos))
                             }
                             let typ = TypeExpression::parse(parser, indent)?;
                             parser.token_expect(Token::Equal)?;
                             let expr = Expression::parse(parser, indent)?;
                             pos.extend(&expr.pos);
                             parser.expect_end()?;
-                            Ok(Located::new(Self::Variable(path, Some(typ), expr), pos))
+                            Ok(Located::new(Self::Variable(id, Some(typ), expr), pos))
                         } else {
                             return Err(Error::new(format!("expected {}", Token::ID("".into()).name()), parser.path.clone(), Some(pos)))
                         }
@@ -665,7 +666,7 @@ impl Parsable for Statment {
     }
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct Block(Vec<Located<Statment>>);
+pub struct Block(pub Vec<Located<Statment>>);
 impl Parsable for Block {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         parser.expect_end()?;

@@ -4,6 +4,7 @@ mod location;
 mod error;
 mod lexer;
 mod parser;
+mod compiler;
 
 use std::{env, fs, process::exit, io::{self, Write}};
 use arguments::Arguments;
@@ -15,6 +16,8 @@ pub fn run(path: FilePath, text: String, arguments: &Arguments) -> Result<(), Er
     if arguments.get_flag("tokens") { println!("{}", join!(tokens, "\n")) }
     let ast = parser::parse(&path, tokens)?;
     if arguments.get_flag("ast") { println!("{ast:?}"); }
+    let code = compiler::compile(&path, ast)?;
+    if arguments.get_flag("code") { println!("{code}"); }
     todo!("run()")
 }
 
