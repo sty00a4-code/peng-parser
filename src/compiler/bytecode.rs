@@ -1,5 +1,7 @@
 use std::{fmt::Display, collections::{HashMap, HashSet}};
 
+use crate::location::position::Position;
+
 pub type CodeAddr = usize;
 pub type Addr = usize;
 pub type VarAddr = usize;
@@ -20,6 +22,8 @@ pub enum ByteCode {
 
     Object, ObjectField(CodeAddr), Vector(usize),
     Index, Field(ConstAddr),
+
+    Null,
 }
 impl ByteCode {
     pub fn to_u8(self) -> Vec<u8> {
@@ -66,6 +70,7 @@ impl ByteCode {
             Self::Vector(n) => vec![39, n as u8],
             Self::Index => vec![40],
             Self::Field(addr) => vec![41, (addr >> 8) as u8, addr as u8],
+            Self::Null => vec![42],
         }
     }
     pub fn from_u8(code: &[u8]) -> Option<Self> {
@@ -112,6 +117,7 @@ impl ByteCode {
             [39, n] => Some(Self::Vector(*n as usize)),
             [40] => Some(Self::Index),
             [41, a, b] => Some(Self::Field(((*a as usize) << 8) | (*b as usize))),
+            [42] => Some(Self::Null),
             _ => None
         }
     }
@@ -120,6 +126,7 @@ impl ByteCode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Code {
     pub code: Vec<ByteCode>,
+    pub poses: Vec<Position>,
     pub floats: Vec<f64>,
     pub strings: Vec<String>,
     pub functions: HashMap<VarAddr, CodeAddr>,
@@ -130,6 +137,7 @@ impl Code {
     pub fn new() -> Self {
         Self {
             code: vec![],
+            poses: vec![],
             floats: vec![],
             strings: vec![],
             functions: HashMap::new(),
@@ -137,14 +145,17 @@ impl Code {
             memory_max: 0,
         }
     }
-    pub fn push(&mut self, code: ByteCode) {
+    pub fn push(&mut self, code: ByteCode, pos: Position) {
         self.code.push(code);
+        self.poses.push(pos);
     }
-    pub fn overwrite(&mut self, index: usize, code: ByteCode) {
+    pub fn overwrite(&mut self, index: usize, code: ByteCode, pos: Position) {
         self.code[index] = code;
+        self.poses[index] = pos;
     }
-    pub fn insert(&mut self, index: usize, code: ByteCode) {
+    pub fn insert(&mut self, index: usize, code: ByteCode, pos: Position) {
         self.code.insert(index, code);
+        self.poses.insert(index, pos);
     }
 
     pub fn new_addr(&mut self) -> VarAddr {

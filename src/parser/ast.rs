@@ -5,7 +5,7 @@ use crate::{location::position::{Located, Position}, error::Error, lexer::token:
 use super::parser::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ID(String);
+pub struct ID(pub String);
 impl Parsable for ID {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         let Located { item: token, pos } = parser.token_checked()?;

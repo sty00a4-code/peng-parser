@@ -5,6 +5,7 @@ mod error;
 mod lexer;
 mod parser;
 mod compiler;
+mod interpreter;
 
 use std::{env, fs, process::exit, io::{self, Write}};
 use arguments::Arguments;
@@ -18,7 +19,8 @@ pub fn run(path: FilePath, text: String, arguments: &Arguments) -> Result<(), Er
     if arguments.get_flag("ast") { println!("{ast:?}"); }
     let code = compiler::compile(&path, ast)?;
     if arguments.get_flag("code") { println!("{code}"); }
-    todo!("run()")
+    interpreter::run(&path, code)?;
+    Ok(())
 }
 
 fn entry() -> Result<(), Error> {
