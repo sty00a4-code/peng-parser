@@ -163,6 +163,9 @@ impl Code {
         while self.used_addrs.contains(&addr) {
             addr += 1;
         }
+        if addr > self.memory_max {
+            self.memory_max = addr;
+        }
         self.used_addrs.insert(addr);
         addr
     }

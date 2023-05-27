@@ -122,7 +122,6 @@ impl Compiler {
     }
     pub fn pop_scope(&mut self) -> Option<()> {
         let scope = self.frames.last_mut()?.pop_scope()?;
-        dbg!(&scope);
         for (_, addr) in scope.variables {
             self.code.used_addrs.remove(&addr);
         }
