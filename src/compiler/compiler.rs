@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{location::{path::FilePath, position::{Located, Position}}, error::Error, parser::ast::*};
+use crate::{
+    location::{path::FilePath, position::{Located, Position}},
+    error::Error,
+    parser::ast::*,
+};
 use super::bytecode::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -62,7 +66,7 @@ pub struct Compiler {
     pub code: Code,
     pub floats: Vec<f64>,
     pub strings: Vec<String>,
-    pub functions: HashMap<VarAddr, CodeAddr>,
+    pub functions: Vec<CodeAddr>,
     pub frames: Vec<Frame>,
 }
 impl Compiler {
@@ -72,7 +76,7 @@ impl Compiler {
             code: Code::new(),
             floats: vec![],
             strings: vec![],
-            functions: HashMap::new(),
+            functions: vec![],
             frames: vec![],
         }
     }
