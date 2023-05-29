@@ -4,11 +4,11 @@ use arguments::Arguments;
 use error::Error;
 use location::path::FilePath;
 use parser::ast::Chunk;
-mod arguments;
-mod location;
-mod error;
-mod lexer;
-mod parser;
+pub mod arguments;
+pub mod location;
+pub mod error;
+pub mod lexer;
+pub mod parser;
 #[cfg(test)]
 mod tests;
 
