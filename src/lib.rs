@@ -1,4 +1,9 @@
 #![allow(dead_code, unused_variables)]
+
+use arguments::Arguments;
+use error::Error;
+use location::path::FilePath;
+use parser::ast::Chunk;
 mod arguments;
 mod location;
 mod error;
@@ -6,6 +11,22 @@ mod lexer;
 mod parser;
 #[cfg(test)]
 mod tests;
+
+pub fn parse(path: FilePath, text: String, arguments: &Arguments) -> Result<Chunk, Error> {
+    let tokens = lexer::lex(&path, text)?;
+    if arguments.get_flag("tokens") {
+        println!("{}", join_debug!(tokens, "\n"));
+    }
+    let ast = parser::parse(&path, tokens)?;
+    if arguments.get_flag("ast") {
+        println!("{ast:?}");
+    }
+    Ok(ast)
+}
+pub fn parse_file<S: ToString>(path: S, arguments: &Arguments) -> Result<Chunk, Error> {
+    let (path, text) = FilePath::open(path.to_string().as_str())?;
+    parse(path, text, arguments)
+}
 
 #[macro_export]
 macro_rules! join {

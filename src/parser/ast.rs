@@ -405,17 +405,12 @@ pub enum Pattern {
     Atom(Located<Atom>),
     Tuple(Vec<Located<Pattern>>),
     List(Vec<Located<Pattern>>),
-    Wildcard,
 }
 impl Parsable for Pattern {
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         let Located { item: token, mut pos } = parser.token_checked()?;
         match token {
-            Token::ID(id) => if id.as_str() == "_" {
-                Ok(Located::new(Self::Wildcard, pos))
-            } else {
-                Ok(Located::new(Self::Atom(Located::new(Atom::Path(Located::new(Path::ID(ID(id)), pos.clone())), pos.clone())), pos))
-            }
+            Token::ID(id) => Ok(Located::new(Self::Atom(Located::new(Atom::Path(Located::new(Path::ID(ID(id)), pos.clone())), pos.clone())), pos)),
             Token::Int(int) => Ok(Located::new(Self::Atom(Located::new(Atom::Int(int), pos.clone())), pos)),
             Token::Float(float) => Ok(Located::new(Self::Atom(Located::new(Atom::Float(float), pos.clone())), pos)),
             Token::String(string) => Ok(Located::new(Self::Atom(Located::new(Atom::String(string), pos.clone())), pos)),
@@ -504,7 +499,7 @@ pub enum Statment {
     Assign(Located<Path>, Located<AssignOperator>, Located<Expression>),
     Call(Located<Path>, Located<Arguments>),
     If(Vec<Located<Expression>>, Vec<Located<Block>>, Option<Located<Block>>),
-    Match(Located<Expression>, Vec<Located<MatchCase>>),
+    Match(Located<Expression>, Vec<Located<MatchCase>>, Option<Located<Block>>),
     While(Located<Expression>, Located<Block>), Repeat(Located<Expression>, Located<Block>),
     For(Located<Parameter>, Located<Expression>, Located<Block>),
     Return(Located<Expression>), Break, Continue, Pass,
@@ -595,7 +590,20 @@ impl Parsable for Statment {
                 let mut cases = vec![];
                 let block_indent = parser.indent();
                 let mut pos: Option<Position> = None;
+                let mut else_case = None;
                 while parser.indent() >= block_indent {
+                    if let Some(Located { item: Token::Else, pos: _ }) = parser.token_ref() {
+                        parser.token_checked()?;
+                        let body = Block::parse(parser, block_indent)?;
+                        pos = if let Some(mut pos) = pos {
+                            pos.extend(&body.pos);
+                            Some(pos)
+                        } else {
+                            Some(body.pos.clone())
+                        };
+                        else_case = Some(body);
+                        break;
+                    }
                     let match_case = MatchCase::parse(parser, block_indent)?;
                     pos = if let Some(mut pos) = pos {
                         pos.extend(&match_case.pos);
@@ -605,7 +613,7 @@ impl Parsable for Statment {
                     };
                     cases.push(match_case);
                 }
-                Ok(Located::new(Self::Match(expr, cases), pos.unwrap()))
+                Ok(Located::new(Self::Match(expr, cases, else_case), pos.unwrap()))
             }
             Token::While => {
                 let Located { item: _, mut pos } = parser.token_checked()?;
