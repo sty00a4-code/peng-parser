@@ -675,6 +675,7 @@ impl Parsable for Statment {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block(pub Vec<Located<Statment>>);
 impl Parsable for Block {
+    /// requires the current line to end
     fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
         parser.expect_end()?;
         if parser.indent() <= indent {
@@ -698,3 +699,28 @@ impl Parsable for Block {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk(pub Vec<Located<Statment>>);
+impl Parsable for Chunk {
+    fn parse(parser: &mut Parser, indent: usize) -> Result<Located<Self>, Error> {
+        let mut nodes = vec![];
+        let mut pos = Position::default();
+        if parser.token_ref().is_none() {
+            while parser.lines() > 0 {
+                parser.next_line();
+            }
+        }
+        while parser.token_ref().is_some() {
+            if parser.indent() != 0 {
+                return Err(Error::new(format!("unexpected indention, expected none"), parser.path.clone(), Some(parser.pos())))
+            }
+            let stat = Statment::parse(parser, parser.indent())?;
+            pos.extend(&stat.pos);
+            nodes.push(stat);
+            if parser.token_ref().is_none() {
+                while parser.lines() > 0 {
+                    parser.next_line();
+                }
+            }
+        }
+        Ok(Located::new(Self(nodes), pos))
+    }
+}

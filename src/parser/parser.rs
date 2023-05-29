@@ -19,6 +19,9 @@ impl Parser {
     pub fn pos(&self) -> Position {
         Position::new(self.ln..self.ln+1, 0..1)
     }
+    pub fn lines(&self) -> usize {
+        self.lines.len()
+    }
     pub fn next_line(&mut self) {
         if self.lines.len() > 0 { self.lines.remove(0); self.ln += 1 }
     }
@@ -86,23 +89,7 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Chunk, Error> {
-        let mut nodes = vec![];
-        if self.token_ref().is_none() {
-            while self.lines.len() > 0 {
-                self.next_line();
-            }
-        }
-        while self.token_ref().is_some() {
-            if self.indent() != 0 {
-                return Err(Error::new(format!("unexpected indention, expected none"), self.path.clone(), Some(Position::new(self.ln..self.ln+1, 0..1))))
-            }
-            nodes.push(Statment::parse(self, self.indent())?);
-            if self.token_ref().is_none() {
-                while self.lines.len() > 0 {
-                    self.next_line();
-                }
-            }
-        }
-        Ok(Chunk(nodes))
+        let Located { item: chunk, pos } = Chunk::parse(self, 0)?;
+        Ok(chunk)
     }
 }
