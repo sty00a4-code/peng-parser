@@ -1,2 +1,2 @@
-# PENG!
-An interpreted programming language for writting code fast
+# PENG-PARSER
+The parser for the Peng programming language.
